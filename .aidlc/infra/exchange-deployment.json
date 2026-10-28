@@ -1,0 +1,11 @@
+{
+  "environment": "staging-canary-01",
+  "replicas": 2,
+  "jvm_heap_gb": 8,
+  "exchange_performance_cfg": {
+    "ringBufferSize": 65536,
+    "matchingEnginesNum": 1,
+    "riskEnginesNum": 2,
+    "msgsInGroupLimit": 256
+  }
+}
