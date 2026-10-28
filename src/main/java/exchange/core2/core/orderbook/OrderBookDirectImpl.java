@@ -33,6 +33,7 @@ import org.agrona.collections.MutableLong;
 import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -105,6 +106,10 @@ public final class OrderBookDirectImpl implements IOrderBook {
 
         switch (cmd.orderType) {
             case GTC:
+                newOrderPlaceGtc(cmd);
+                break;
+            case GTD:
+                // RFC-001: GTD place path matches GTC; expiry index / EXPIRE_ORDERS come later
                 newOrderPlaceGtc(cmd);
                 break;
             case IOC:

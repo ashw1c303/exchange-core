@@ -29,7 +29,10 @@ public enum OrderType {
 
     // Fill or Kill - execute immediately completely or not at all
     FOK(3), // with price cap
-    FOK_BUDGET(4); // total amount cap
+    FOK_BUDGET(4), // total amount cap
+
+    // Good till Date - rest like GTC until expireTimestamp (RFC-001)
+    GTD(5);
 
     private final byte code;
 
@@ -49,6 +52,8 @@ public enum OrderType {
                 return FOK;
             case 4:
                 return FOK_BUDGET;
+            case 5:
+                return GTD;
             default:
                 throw new IllegalArgumentException("unknown OrderType:" + code);
         }
