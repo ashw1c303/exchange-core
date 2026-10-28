@@ -1,0 +1,23 @@
+---
+description: Use this skill whenever the user asks to generate unit tests, UAT scenarios, acceptance tests, or a Human QA verification plan for exchange-core features.
+globs:
+  - "src/test/java/**/*.java"
+alwaysApply: false
+---
+# Skill: Automated UAT & Human QA Synthesizer
+
+When generating tests or QA plans for `exchange-core`:
+
+## 1. Automated JUnit / Integration Test Generation
+- Mirror the existing test harnesses in `OrderBookDirectImplTest` and `ITExchangeCoreIntegration`.
+- Use `TestOrdersGenerator` and `ExchangeTestContainer` helper methods rather than mocking `OrderBook` internals.
+- Every new order feature MUST test these 4 boundary invariants:
+  1. **Exact Match vs. Partial Fill** prior to expiry/cancellation.
+  2. **State Hash Equality (`stateHash()`)**: Verify `OrderBookDirectImpl` and `OrderBookNaiveImpl` produce identical `stateHash()` checksums after executing the test sequence.
+  3. **Snapshot Serialization Round-Trip**: Serialize the order book via `BytesOut`, reconstruct via `BytesIn`, and assert `stateHash()` remains identical.
+  4. **Risk Hold Release**: Verify `UserProfile` free balance is properly restored when an order expires or is rejected.
+
+## 2. Human-Led QA Verification Block
+After writing the Java test code, output a copy-pasteable Markdown block titled `### 🧪 Human QA Exploratory Charter` containing:
+- **Pre-conditions** (Symbol configuration: `Spot` vs `FuturesMargin`, `lotSize`, `stepSize`).
+- **3 Exploratory Edge Cases** a human QA engineer should run against the staging container (`mvn test -Dtest=...`).
