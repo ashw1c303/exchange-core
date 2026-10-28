@@ -1,0 +1,53 @@
+---
+description: Guardrail Configuration for exchange-core changes
+alwaysApply: true
+---
+
+# Guardrail Configuration
+
+This project rule always applies. Agents must obey these constraints on every change in this repository.
+
+## Machine-readable configuration
+
+```json
+{
+  "protected_paths": [
+    "src/main/java/exchange/core2/core/ExchangeCore.java",
+    "src/main/java/exchange/core2/core/processors/journaling/**"
+  ],
+  "hot_path_packages": [
+    "src/main/java/exchange/core2/core/orderbook/",
+    "src/main/java/exchange/core2/core/processors/"
+  ],
+  "forbidden_imports_in_hot_path": [
+    "java.util.HashMap",
+    "java.util.ArrayList",
+    "java.time.Instant",
+    "java.util.concurrent.locks.*"
+  ],
+  "max_files_changed_per_pr": 8,
+  "performance_sla": {
+    "max_p99_latency_ns": 1500
+  }
+}
+```
+
+## Agent instructions
+
+1. **Protected paths (read-only by default)**  
+   Treat every path in `protected_paths` as read-only unless the user explicitly asks to change it. Do not modify these files casually:
+   - `src/main/java/exchange/core2/core/ExchangeCore.java`
+   - `src/main/java/exchange/core2/core/processors/journaling/**`
+
+2. **Hot-path import bans**  
+   Under `hot_path_packages` (`orderbook/` and `processors/`), never introduce any import listed in `forbidden_imports_in_hot_path`, including lock types matching `java.util.concurrent.locks.*`:
+   - `java.util.HashMap`
+   - `java.util.ArrayList`
+   - `java.time.Instant`
+   - `java.util.concurrent.locks.*`
+
+3. **PR size limit**  
+   Keep each pull request within `max_files_changed_per_pr` (**8** files). Split larger work into smaller PRs.
+
+4. **Performance SLA**  
+   Respect `performance_sla.max_p99_latency_ns` of **1500**. Do not land changes that would push p99 latency above 1500 ns.
