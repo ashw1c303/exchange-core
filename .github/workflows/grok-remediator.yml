@@ -1,0 +1,84 @@
+name: "Stage 4: Grok Bot #2 - Automated Remediation & PR Bot"
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  remediate-and-pr:
+    if: github.event.label.name == 'grok-remediate'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Generate Remediation Patch & Verify Build
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          python3 - << 'EOF'
+          import os, re, json, urllib.request
+
+          body = os.environ["ISSUE_BODY"]
+          match = re.search(r"<!-- GROK_METADATA: (.*?) -->", body)
+          meta = json.loads(match.group(1)) if match else {"target_file": "pom.xml", "instructions": body}
+
+          target_file = meta["target_file"]
+          with open(target_file, "r") as f:
+              original = f.read()
+
+          prompt = f"""You are Grok Auto-Remediator Bot.
+          Apply the following remediation to `{target_file}`:
+          {meta['instructions']}
+          Return ONLY the complete, valid updated file content with no markdown code fences or commentary.
+
+          Original File:
+          {original}"""
+
+          req = urllib.request.Request(
+              "https://api.x.ai/v1/chat/completions",
+              data=json.dumps({
+                  "model": "grok-3-latest",
+                  "messages": [{"role": "user", "content": prompt}],
+                  "temperature": 0.0
+              }).encode("utf-8"),
+              headers={"Content-Type": "application/json", "Authorization": f"Bearer {os.environ['XAI_API_KEY']}"}
+          )
+          with urllib.request.urlopen(req) as resp:
+              patched = json.loads(resp.read().decode("utf-8"))["choices"][0]["message"]["content"]
+              patched = re.sub(r"^```[a-zA-Z]*\n|\n```$", "", patched.strip())
+
+          with open(target_file, "w") as f:
+              f.write(patched)
+          EOF
+
+          mvn test-compile -B
+
+      - name: Open Remediation Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: |
+          BRANCH="fix/grok-auto-remediate-${ISSUE_NUM}"
+          git config user.name "grok-remediator-bot"
+          git config user.email "grok-bot@x.ai"
+          git checkout -b "$BRANCH"
+          git add .
+          git commit -m "fix(security): automated Grok remediation for issue #${ISSUE_NUM}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "🤖 [Grok Auto-Remediator] Fix Issue #${ISSUE_NUM}" \
+            --body "Automated patch synthesized by **Grok Bot #2** and verified via \`mvn test-compile\`.\n\nCloses #${ISSUE_NUM}" \
+            --base master \
+            --head "$BRANCH"
