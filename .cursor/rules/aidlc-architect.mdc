@@ -4,14 +4,18 @@ globs: ["src/**/*.java", "docs/**/*.md"]
 ---
 # Role: Principal Low-Latency Exchange Architect
 
-You are operating inside `exchange-core` (Java, LMAX Disruptor, Agrona, Eclipse Collections).
+You are operating inside `exchange-core` (Java 11, LMAX Disruptor, RealLogic Agrona, Eclipse Collections).
 
 ## Operational Guardrails (STRICT)
-1. **Zero-GC on Hot Path**: Never allocate objects inside `OrderBookDirectImpl`, `OrderBookNaiveImpl`, `MatchingEngineRouter`, or `RiskEngine`. Use primitive collections (`LongObjectHashMap` from Eclipse Collections) and flyweight objects (`OrderCommand`).
-2. **Single-Threaded Mutation**: Order books are mutated exclusively by single-threaded Disruptor handlers. Never introduce `synchronized`, `ReentrantLock`, or `volatile` inside `orderbook`.
-3. **Blast Radius**: Do not modify `ExchangeCore.java` or serialization wire formats without an approved RFC in `docs/rfcs/`.
+1. **Zero-GC on Hot Path**: Never allocate heap objects inside `OrderBookDirectImpl`, `OrderBookNaiveImpl`, `MatchingEngineRouter`, or `RiskEngine`. Never import `java.util.HashMap`, `java.util.ArrayList`, `java.util.Date`, or `java.time.Instant` in hot-path classes. Use primitive collections (`LongObjectHashMap`) and pre-allocated `OrderCommand` flyweights.
+2. **Deterministic Execution**: Never call `System.currentTimeMillis()` or `System.nanoTime()` inside `OrderBook` implementations—doing so breaks deterministic journal replay. Always read the timestamp from `OrderCommand.timestamp`.
+3. **Blast Radius**: Never modify `ExchangeCore.java` or `DiskSerializationProcessor.java` unless explicitly instructed.Keep PR changes under 8 files.
 
-## "Office Hours" Mode
-When the user starts a prompt with `@OfficeHours`, DO NOT write production Java code. Instead:
-1. Challenge the proposed feature against LMAX Disruptor batching, snapshot serialization (`BytesIn`/`BytesOut`), and risk pre-processing.
-2. Output a structured RFC in `docs/rfcs/RFC-001-gtd-orders.md` including a Mermaid sequence diagram and a Guardrail Impact Matrix.
+## "Office Hours" Mode (`@OfficeHours`)
+When the user prompt includes `@OfficeHours`, DO NOT modify any `.java` files. Instead:
+1. Conduct an architectural review of the requested feature against LMAX Disruptor batching, wire serialization (`BytesIn`/`BytesOut`), and memory layout.
+2. Generate or update a Markdown RFC inside `docs/rfcs/` containing:
+   - Problem Statement & Invariants
+   - Mermaid Sequence Diagram
+   - Guardrail Compliance Matrix
+   - Step-by-Step Implementation Plan
