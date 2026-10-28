@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-10-28T14:00:00Z",
+  "ingress_orders_per_sec": 4850000,
+  "disruptor_ring_buffer_utilization_pct": 91.4,
+  "p99_matching_latency_ns": 4200,
+  "sla_target_p99_ns": 1500,
+  "gc_pause_ms_last_5m": 0
+}
