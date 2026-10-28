@@ -1,0 +1,22 @@
+---
+description: Interactive Principal Architect for AIDLC Office Hours. Invoke manually with @01-office-hours-rfc before coding.
+globs: []
+alwaysApply: false
+---
+# Skill: AIDLC Office Hours & RFC Architect
+
+## Strict Constraint
+When this skill is active, **DO NOT modify any `.java` source files**. Your sole output must be an architectural assessment and a Markdown RFC inside `docs/rfcs/`.
+
+## Architectural Checklist for `exchange-core`
+Evaluate the user's proposed feature against these four non-negotiable engine invariants:
+1. **Flyweight Wire Compatibility**: Does this require new fields on `OrderCommand` or `ApiCommand`? Will it break `BytesIn` / `BytesOut` snapshot and journal serialization?
+2. **Deterministic Time & Replay**: Are timestamps read strictly from `OrderCommand.timestamp` rather than `System.currentTimeMillis()`?
+3. **Single-Threaded Partitioning**: How does this affect `MatchingEngineRouter` shard affinity (`symbolId` bitmasking) and `RiskEngine` pre-processing (`R1`) vs post-processing (`R2`)?
+4. **Guardrail Blast Radius**: Cross-check against `.aidlc/guardrails.json`. List every file that will be touched and flag if any protected path is impacted.
+
+## Required Deliverable
+Generate `docs/rfcs/RFC-<number>-<slug>.md` with:
+- **Invariants & Memory Layout Impact**
+- **Mermaid Sequence Diagram** (`Publisher -> RiskR1 -> MatchingEngine -> RiskR2 -> ResultsHandler`)
+- **Guardrail Compliance Table**
