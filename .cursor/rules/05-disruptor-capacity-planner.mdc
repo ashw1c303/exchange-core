@@ -1,0 +1,17 @@
+---
+description: Use this skill when analyzing telemetry metrics, tuning PerformanceConfiguration, or scaling ringBufferSize, matchingEnginesNum, and riskEnginesNum.
+globs:
+  - ".aidlc/infra/**/*.json"
+  - "src/main/java/exchange/core2/core/common/config/PerformanceConfiguration.java"
+alwaysApply: false
+---
+# Skill: LMAX Disruptor Telemetry & Capacity Planner
+
+When tuning `.aidlc/infra/exchange-deployment.json` or `PerformanceConfiguration.java` based on load metrics:
+1. **Bitmask Invariant (CRITICAL)**:
+   - `ringBufferSize` MUST be an exact power of 2 (e.g., `65536`, `131072`, `262144`, `524288`).
+   - `matchingEnginesNum` MUST be between `1` and `64` and should ideally be a power of 2 (`1, 2, 4, 8`) because symbol routing uses bitwise AND (`symbolId & (matchingEnginesNum - 1)`).
+   - `riskEnginesNum` MUST be a power of 2 (`1, 2, 4, 8`) because user UID routing uses bitwise AND (`uid & (riskEnginesNum - 1)`).
+2. **Bottleneck Diagnosis Rules**:
+   - **High Ring Buffer Utilization (>80%) + Zero GC**: Increase `ringBufferSize` to absorb micro-bursts and double `matchingEnginesNum` if multi-symbol contention is high.
+   - **High P99 Latency + Non-Zero GC Pauses**: Do NOT scale hardware first—audit recent commits for hot-path heap allocations.
