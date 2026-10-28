@@ -1,0 +1,22 @@
+---
+description: Enforces Zero-GC, primitive collections, and lock-free invariants on the matching engine hot path.
+globs:
+  - "src/main/java/exchange/core2/core/orderbook/**/*.java"
+  - "src/main/java/exchange/core2/core/processors/**/*.java"
+  - "src/main/java/exchange/core2/core/common/cmd/**/*.java"
+alwaysApply: false
+---
+# Skill: Zero-GC & Lock-Free Hot-Path Enforcer
+
+You are editing a sub-microsecond hot-path class in `exchange-core`.
+
+## Forbidden Patterns (Hard Block)
+1. **No Standard JDK Collections or Boxed Primitives**:
+   - NEVER import or use `java.util.HashMap`, `java.util.TreeMap`, `java.util.ArrayList`, `Long`, `Integer`, or `Double`.
+   - ALWAYS use Eclipse Collections primitive maps (`LongObjectHashMap`, `IntObjectHashMap`, `LongLongHashMap`) or custom intrusive radix trees (`ART` - Adaptive Radix Tree).
+2. **No Heap Object Instantiation (`new`) During Command Processing**:
+   - Inside `processOrder()`, `newOrder()`, `cancelOrder()`, or `reduceOrder()`, do not allocate transient objects. Mutate the existing `OrderCommand` flyweight or pull pre-allocated nodes from `ObjectsPool`.
+3. **No Locks or Thread Synchronization**:
+   - NEVER use `synchronized`, `ReentrantLock`, `AtomicLong`, or `CompletableFuture` inside order books. Each `OrderBook` instance is owned by a single pinned LMAX Disruptor thread.
+4. **No Lambdas Capturing State**:
+   - Avoid Java streams (`.stream().filter(...)`) and state-capturing lambdas on the hot path, as the JVM allocates lambda instances on the heap. Use indexed `for` loops or Eclipse Collections `forEachKeyValue` procedures.
