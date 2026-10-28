@@ -1,0 +1,20 @@
+{
+  "protected_paths": [
+    "src/main/java/exchange/core2/core/ExchangeCore.java",
+    "src/main/java/exchange/core2/core/processors/journaling/**"
+  ],
+  "hot_path_packages": [
+    "src/main/java/exchange/core2/core/orderbook/",
+    "src/main/java/exchange/core2/core/processors/"
+  ],
+  "forbidden_imports_in_hot_path": [
+    "java.util.HashMap",
+    "java.util.ArrayList",
+    "java.time.Instant",
+    "java.util.concurrent.locks.*"
+  ],
+  "max_files_changed_per_pr": 8,
+  "performance_sla": {
+    "max_p99_latency_ns": 1500
+  }
+}
