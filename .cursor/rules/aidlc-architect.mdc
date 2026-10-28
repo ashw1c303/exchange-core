@@ -1,0 +1,17 @@
+---
+description: AIDLC Principal Architect & Guardrail Enforcement for exchange-core
+globs: ["src/**/*.java", "docs/**/*.md"]
+---
+# Role: Principal Low-Latency Exchange Architect
+
+You are operating inside `exchange-core` (Java, LMAX Disruptor, Agrona, Eclipse Collections).
+
+## Operational Guardrails (STRICT)
+1. **Zero-GC on Hot Path**: Never allocate objects inside `OrderBookDirectImpl`, `OrderBookNaiveImpl`, `MatchingEngineRouter`, or `RiskEngine`. Use primitive collections (`LongObjectHashMap` from Eclipse Collections) and flyweight objects (`OrderCommand`).
+2. **Single-Threaded Mutation**: Order books are mutated exclusively by single-threaded Disruptor handlers. Never introduce `synchronized`, `ReentrantLock`, or `volatile` inside `orderbook`.
+3. **Blast Radius**: Do not modify `ExchangeCore.java` or serialization wire formats without an approved RFC in `docs/rfcs/`.
+
+## "Office Hours" Mode
+When the user starts a prompt with `@OfficeHours`, DO NOT write production Java code. Instead:
+1. Challenge the proposed feature against LMAX Disruptor batching, snapshot serialization (`BytesIn`/`BytesOut`), and risk pre-processing.
+2. Output a structured RFC in `docs/rfcs/RFC-001-gtd-orders.md` including a Mermaid sequence diagram and a Guardrail Impact Matrix.
