@@ -1,0 +1,86 @@
+name: "Stage 5: Grok Bot #3 - Load-Sensing CI/CD & Auto-Scaler"
+on:
+  workflow_dispatch:
+    inputs:
+      load_scenario:
+        description: 'Simulated Telemetry Load Profile'
+        required: true
+        default: 'flash_crash_5m_tps'
+        type: choice
+        options:
+          - normal_load
+          - market_open_spike
+          - flash_crash_5m_tps
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  telemetry-sense-and-scale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Evaluate Telemetry & Provision Scaled Environment
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          LOAD_SCENARIO: ${{ github.event.inputs.load_scenario }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          python3 - << 'EOF'
+          import os, json, urllib.request
+
+          with open(".aidlc/infra/exchange-deployment.json") as f:
+              cfg = json.load(f)
+          with open(".aidlc/infra/telemetry-snapshot.json") as f:
+              telemetry = json.load(f)
+
+          scenario = os.environ.get("LOAD_SCENARIO", "flash_crash_5m_tps")
+          prompt = f"""You are Grok SRE & Load-Sensing CI/CD Bot for exchange-core.
+          Load Scenario: {scenario}
+          Live Telemetry: {json.dumps(telemetry)}
+          Current Config: {json.dumps(cfg)}
+
+          Scaling Rules:
+          1. LMAX Disruptor `ringBufferSize` MUST be a power of 2 (e.g., 65536, 131072, 262144).
+          2. Because ring buffer utilization is {telemetry['disruptor_ring_buffer_utilization_pct']}% and P99 latency ({telemetry['p99_matching_latency_ns']}ns) exceeds SLA ({telemetry['sla_target_p99_ns']}ns), scale up `ringBufferSize`, `matchingEnginesNum`, `riskEnginesNum`, and `replicas`, and provision a new ephemeral environment identifier.
+          Output ONLY valid JSON with keys:
+          "updated_config": updated JSON object matching exchange-deployment.json structure,
+          "provisioning_plan": bash/terraform commands executed to spin up the new environment,
+          "sre_analysis_markdown": detailed explanation of the telemetry bottleneck and Disruptor tuning."""
+
+          req = urllib.request.Request(
+              "https://api.x.ai/v1/chat/completions",
+              data=json.dumps({
+                  "model": "grok-3-latest",
+                  "response_format": {"type": "json_object"},
+                  "messages": [{"role": "user", "content": prompt}],
+                  "temperature": 0.1
+              }).encode("utf-8"),
+              headers={"Content-Type": "application/json", "Authorization": f"Bearer {os.environ['XAI_API_KEY']}"}
+          )
+          with urllib.request.urlopen(req) as resp:
+              result = json.loads(json.loads(resp.read().decode("utf-8"))["choices"][0]["message"]["content"])
+
+          with open(".aidlc/infra/exchange-deployment.json", "w") as f:
+              json.dump(result["updated_config"], f, indent=2)
+
+          with open("scaling_pr_body.md", "w") as f:
+              f.write(f"## ⚡ Grok Bot #3: Load-Sensing Environment Provisioning (`{scenario}`)\n\n")
+              f.write(result["sre_analysis_markdown"])
+              f.write(f"\n\n### 🛠️ Ephemeral Environment Provisioning Commands\n```bash\n{result['provisioning_plan']}\n```\n")
+          EOF
+
+          BRANCH="ops/grok-scale-${LOAD_SCENARIO}-${GITHUB_RUN_NUMBER}"
+          git config user.name "grok-ops-scaler-bot"
+          git config user.email "grok-ops@x.ai"
+          git checkout -b "$BRANCH"
+          git add .aidlc/infra/exchange-deployment.json
+          git commit -m "perf(ops): auto-scale Disruptor shards and provision canary for ${LOAD_SCENARIO}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "⚡ [Grok OpsBot] Provision Environment & Scale Shards (${LOAD_SCENARIO})" \
+            --body-file scaling_pr_body.md \
+            --base master \
+            --head "$BRANCH"
