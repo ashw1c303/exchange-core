@@ -75,7 +75,7 @@
         <dependency>
             <groupId>com.lmax</groupId>
             <artifactId>disruptor</artifactId>
-            <version>3.4.2</version>  <!-- TODO 3.4.4 -->
+            <version>3.4.4</version>  <!-- TODO 3.4.4 -->
         </dependency>
 
         <dependency>
